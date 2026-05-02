@@ -11,6 +11,114 @@
 <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%230a2e1f'/%3E%3Ctext y='48' x='32' text-anchor='middle' font-size='40'%3E%F0%9F%8C%BF%3C/text%3E%3C/svg%3E"/>
 <link rel="apple-touch-icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 180 180'%3E%3Crect width='180' height='180' rx='40' fill='%230a2e1f'/%3E%3Ctext y='130' x='90' text-anchor='middle' font-size='110'%3E%F0%9F%8C%BF%3C/text%3E%3C/svg%3E"/>
 
+<!-- PWA Manifest inline -->
+<script>
+// Inject PWA manifest dynamically
+(function(){
+  const manifest = {
+    name: "ÇiftlikApp – Hayvancılık Yönetimi",
+    short_name: "ÇiftlikApp",
+    description: "Küçükbaş ve büyükbaş hayvancılık yönetim sistemi",
+    display: "standalone",
+    start_url: ".",
+    theme_color: "#0a2e1f",
+    background_color: "#0a2e1f",
+    orientation: "portrait",
+    icons: [
+      { src: "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 192 192'%3E%3Crect width='192' height='192' rx='40' fill='%230a2e1f'/%3E%3Ctext y='140' x='96' text-anchor='middle' font-size='120'%3E%F0%9F%8C%BF%3C/text%3E%3C/svg%3E", sizes: "192x192", type: "image/svg+xml" },
+      { src: "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 512 512'%3E%3Crect width='512' height='512' rx='100' fill='%230a2e1f'/%3E%3Ctext y='380' x='256' text-anchor='middle' font-size='320'%3E%F0%9F%8C%BF%3C/text%3E%3C/svg%3E", sizes: "512x512", type: "image/svg+xml" }
+    ]
+  };
+  const blob = new Blob([JSON.stringify(manifest)], {type:'application/json'});
+  const url  = URL.createObjectURL(blob);
+  const link = document.createElement('link');
+  link.rel = 'manifest'; link.href = url;
+  document.head.appendChild(link);
+})();
+</script>
+
+<!-- Service Worker -->
+<script>
+if ('serviceWorker' in navigator) {
+  // Inline SW as blob — no separate file needed
+  const swCode = `
+const CACHE = 'ciftlikapp-v1.1.0';
+const URLS  = [location.href];
+
+self.addEventListener('install', e => {
+  e.waitUntil(caches.open(CACHE).then(c => c.addAll(URLS)).then(() => self.skipWaiting()));
+});
+
+self.addEventListener('activate', e => {
+  e.waitUntil(
+    caches.keys().then(keys =>
+      Promise.all(keys.filter(k => k !== CACHE).map(k => caches.delete(k)))
+    ).then(() => self.clients.claim())
+  );
+});
+
+self.addEventListener('fetch', e => {
+  if (e.request.mode === 'navigate') {
+    e.respondWith(
+      fetch(e.request).then(r => {
+        const clone = r.clone();
+        caches.open(CACHE).then(c => c.put(e.request, clone));
+        return r;
+      }).catch(() => caches.match(e.request))
+    );
+    return;
+  }
+  e.respondWith(
+    fetch(e.request).catch(() => caches.match(e.request))
+  );
+});
+
+// Notify clients when new SW activated
+self.addEventListener('message', e => {
+  if (e.data === 'skipWaiting') self.skipWaiting();
+});
+  `;
+  const blob = new Blob([swCode], {type: 'application/javascript'});
+  const swUrl = URL.createObjectURL(blob);
+  navigator.serviceWorker.register(swUrl).then(reg => {
+    reg.addEventListener('updatefound', () => {
+      const newWorker = reg.installing;
+      newWorker.addEventListener('statechange', () => {
+        if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
+          // New version available — show update banner
+          window.__swUpdate = true;
+          const banner = document.createElement('div');
+          banner.id = 'sw-banner';
+          banner.style.cssText = 'position:fixed;top:0;left:0;right:0;z-index:9999;background:#0F6E56;color:#fff;padding:12px 16px;display:flex;align-items:center;justify-content:space-between;font-family:sans-serif;font-size:14px;';
+          banner.innerHTML = '<span>🌿 Yeni güncelleme mevcut!</span><button onclick="newWorker.postMessage('skipWaiting');location.reload()" style="background:#fff;color:#0F6E56;border:none;border-radius:8px;padding:6px 14px;font-weight:600;cursor:pointer">Güncelle</button>';
+          document.body.prepend(banner);
+        }
+      });
+    });
+  }).catch(()=>{});
+
+  // Auto-reload if SW updated since last visit (standalone / PWA mode)
+  navigator.serviceWorker.addEventListener('controllerchange', () => {
+    if (!window.__reloading) { window.__reloading = true; location.reload(); }
+  });
+
+  // Check online — reload when coming back online after being offline
+  window.addEventListener('online', () => {
+    if (document.visibilityState === 'visible') location.reload();
+  });
+}
+
+// PWA standalone: reload on visibility change if page was hidden > 10 min
+let hiddenAt = null;
+document.addEventListener('visibilitychange', () => {
+  if (document.hidden) { hiddenAt = Date.now(); }
+  else if (hiddenAt && Date.now() - hiddenAt > 10 * 60 * 1000) {
+    hiddenAt = null;
+    location.reload();
+  }
+});
+</script>
+
 <!-- ═══════════════════════════════════════
   Firebase Config — kendi bilgilerinizi girin
 ════════════════════════════════════════ -->
@@ -24,6 +132,8 @@ const FIREBASE_CONFIG = {
   appId:             "1:157512214186:web:eaff132e08339d00dcd2d3"
 };
 </script>
+
+<link rel="manifest" href="data:application/manifest+json,%7B%22name%22%3A%22%C3%87iftlikApp%22%2C%22short_name%22%3A%22%C3%87iftlikApp%22%2C%22description%22%3A%22K%C3%BC%C3%A7%C3%BCkba%C5%9F%20%26%20B%C3%BCy%C3%BCkba%C5%9F%20Y%C3%B6netim%22%2C%22start_url%22%3A%22.%2F%22%2C%22display%22%3A%22standalone%22%2C%22background_color%22%3A%22%230a2e1f%22%2C%22theme_color%22%3A%22%230a2e1f%22%2C%22orientation%22%3A%22portrait%22%7D"/>
 
 <style>
 @import url('https://fonts.googleapis.com/css2?family=DM+Serif+Display&family=DM+Sans:opsz,wght@9..40,300;9..40,400;9..40,500;9..40,600&display=swap');
@@ -169,12 +279,49 @@ function subData() {
 
 getRedirectResult(auth).catch(()=>{});
 
+// Standalone (Ana Ekran) modunda açılışta güncelleme kontrol et
+if (window.matchMedia("(display-mode: standalone)").matches || window.navigator.standalone) {
+  // Already handled by SW — just log
+  console.log("ÇiftlikApp: Standalone modda açıldı (v1.1.0)");
+}
+
 onAuthStateChanged(auth, u => {
+  const isFirstLogin = !S.user && u && !localStorage.getItem("ciftlik_user_seen_"+u.uid);
   S.user = u || null;
-  if (u) subData();
-  else { unsubs.forEach(f=>f()); S.animals=[]; S.barns=[]; S.finances=[]; }
+  if (u) {
+    subData();
+    if (isFirstLogin) {
+      localStorage.setItem("ciftlik_user_seen_"+u.uid, "1");
+      setTimeout(() => showWelcomeBanner(u), 1800);
+    }
+    // PWA install check — ilk giriş sonrası göster
+    setTimeout(checkFirstVisit, 2500);
+  } else {
+    unsubs.forEach(f=>f()); S.animals=[]; S.barns=[]; S.finances=[];
+  }
   render();
 });
+
+function showWelcomeBanner(u) {
+  if (isStandalone()) return;
+  const banner = document.createElement("div");
+  banner.id = "welcome-banner";
+  banner.style.cssText = "position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:9999;display:flex;align-items:center;justify-content:center;padding:24px;backdrop-filter:blur(4px);animation:fadeIn .2s ease;font-family:sans-serif";
+  banner.innerHTML = `
+    <div style="background:#fff;border-radius:20px;padding:28px 24px;max-width:340px;width:100%;text-align:center;box-shadow:0 8px 40px rgba(0,0,0,.3)">
+      <div style="width:72px;height:72px;border-radius:20px;background:#0a2e1f;display:flex;align-items:center;justify-content:center;font-size:40px;margin:0 auto 16px">🌿</div>
+      <div style="font-family:'Georgia',serif;font-size:22px;color:#1A2318;margin-bottom:6px">Hoş Geldiniz!</div>
+      <div style="font-size:13px;color:#5A6B58;margin-bottom:4px">${u.displayName||u.email}</div>
+      <div style="font-size:13px;color:#5A6B58;margin-bottom:20px">ÇiftlikApp'e ilk kez giriş yaptınız. Hayvanlarınızı, ahırlarınızı ve finansal kayıtlarınızı kolayca takip edebilirsiniz.</div>
+      <div style="background:#E1F5EE;border-radius:12px;padding:12px;margin-bottom:16px;text-align:left">
+        <div style="font-size:12px;font-weight:600;color:#0F6E56;margin-bottom:6px">HIZLI BAŞLANGIÇ</div>
+        <div style="font-size:12px;color:#1A2318;line-height:1.8">🏠 Önce <b>Ahır Ekle</b><br>🐑 Sonra <b>Hayvan Ekle</b><br>💰 Yem/gider için <b>Finans</b> sekmesi</div>
+      </div>
+      <button onclick="document.getElementById('welcome-banner').remove()" style="width:100%;background:#1D9E75;color:#fff;border:none;border-radius:12px;padding:13px;font-size:15px;font-weight:600;cursor:pointer">Başlayalım! 🐑</button>
+    </div>
+  \`;
+  document.body.appendChild(banner);
+}
 
 /* ══════════════════════════════════════
    RENDER
@@ -635,9 +782,30 @@ function infoEl() {
   const logoBox  = mk("div",{style:"width:72px;height:72px;border-radius:20px;background:#0a2e1f;display:flex;align-items:center;justify-content:center;font-size:40px;margin:0 auto 14px"},"🌿");
   const appName  = mk("div",{style:"font-family:'Georgia',serif;font-size:24px;font-weight:400;color:var(--text-primary)"},"ÇiftlikApp");
   const appSub   = mk("div",{style:"font-size:13px;color:var(--text-secondary);margin-top:4px"},"Küçükbaş & Büyükbaş Yönetim Sistemi");
-  const verBadge = mk("div",{style:"margin-top:10px;display:inline-block;background:var(--green-light);color:var(--green-dark);font-size:11px;font-weight:600;padding:3px 12px;border-radius:20px"},"Sürüm 1.0.0");
+  const verBadge = mk("div",{style:"margin-top:10px;display:inline-block;background:var(--green-light);color:var(--green-dark);font-size:11px;font-weight:600;padding:3px 12px;border-radius:20px"},"Sürüm 1.1.0");
   logoCard.append(logoBox,appName,appSub,verBadge);
   wrap.appendChild(logoCard);
+
+  /* versiyon gecmisi */
+  const verCard = mk("div",{className:"card"});
+  verCard.appendChild(mk("div",{className:"section-title"},"Güncelleme Geçmişi"));
+  [
+    ["v1.1.0","Mayıs 2025",["PWA ikon desteği eklendi","Otomatik güncelleme sistemi","Toplu hayvan satışı","Ödenen/kalan tutar takibi","Ekran zoom sorunu düzeltildi"]],
+    ["v1.0.0","Nisan 2025",["İlk sürüm yayınlandı","Hayvan, ahır, finans takibi","Google ile giriş","Gebelik & uyarı sistemi","Yedek alma/yükleme"]],
+  ].forEach(([ver,tarih,items],vi)=>{
+    const vRow=mk("div",{style:"padding:10px 0;"+(vi>0?"border-top:.5px solid var(--border)":"")});
+    const vHdr=mk("div",{style:"display:flex;align-items:center;gap:8px;margin-bottom:6px"});
+    vHdr.append(mk("span",{style:"font-weight:600;font-size:13px"},ver), mk("span",{style:"font-size:11px;color:var(--text-secondary)"},tarih));
+    if(vi===0) vHdr.appendChild(mk("span",{className:"badge badge-success",style:"margin-left:auto"},"Güncel"));
+    vRow.appendChild(vHdr);
+    items.forEach(item=>{
+      const li=mk("div",{style:"font-size:12px;color:var(--text-secondary);padding:2px 0;display:flex;gap:6px"});
+      li.append(mk("span",{},"·"),mk("span",{},item));
+      vRow.appendChild(li);
+    });
+    verCard.appendChild(vRow);
+  });
+  wrap.appendChild(verCard);
 
   /* hazırlayan */
   const devCard = mk("div",{className:"card",style:"text-align:center;padding:20px"});
@@ -683,6 +851,48 @@ function infoEl() {
   });
   wrap.appendChild(statsCard);
 
+  /* ana ekrana ekle */
+  if (!isStandalone()) {
+    const pwaCard = mk("div",{className:"card"});
+    pwaCard.appendChild(mk("div",{className:"section-title"},"📱 Ana Ekrana Ekle"));
+    const pwaDesc = mk("p",{style:"font-size:13px;color:var(--text-secondary);margin-bottom:14px"},"Uygulamayı telefonunuza kurarak internet bağlantısı olmadan da açabilirsiniz.");
+    pwaCard.appendChild(pwaDesc);
+
+    if (isIOS()) {
+      // iOS talimat
+      const iosBox = mk("div",{style:"background:var(--blue-light);border-radius:12px;padding:14px"});
+      iosBox.append(
+        mk("div",{style:"font-size:13px;font-weight:600;color:#185FA5;margin-bottom:8px"},"iPhone / iPad için:"),
+        ...["1. Alt menüden 📤 Paylaş'a dokunun","2. 'Ana Ekrana Ekle' seçeneğine dokunun","3. Sağ üstten 'Ekle'ye dokunun"].map(t=>{ const d=mk("div",{style:"font-size:13px;color:#1A2318;padding:3px 0"}); d.textContent=t; return d; })
+      );
+      pwaCard.appendChild(iosBox);
+    } else if (isAndroid()) {
+      // Android buton
+      const andBtn = mk("button",{className:"btn-primary",style:"width:100%;display:flex;align-items:center;justify-content:center;gap:8px"},"📲 Ana Ekrana Ekle");
+      andBtn.addEventListener("click", () => {
+        if (deferredInstallPrompt) {
+          deferredInstallPrompt.prompt();
+          deferredInstallPrompt.userChoice.then(()=>{ deferredInstallPrompt=null; render(); });
+        } else {
+          showInstallBanner("android");
+          alert("Tarayıcı menüsünden 'Ana Ekrana Ekle' seçeneğini kullanın.");
+        }
+      });
+      pwaCard.appendChild(andBtn);
+      const andNote = mk("div",{style:"font-size:12px;color:var(--text-secondary);margin-top:8px;text-align:center"},"Chrome ile açıksa buton otomatik çalışır");
+      pwaCard.appendChild(andNote);
+    }
+    wrap.appendChild(pwaCard);
+  } else {
+    const installedCard = mk("div",{className:"card",style:"text-align:center;padding:16px"});
+    installedCard.append(
+      mk("div",{style:"font-size:28px;margin-bottom:8px"},"✅"),
+      mk("div",{style:"font-weight:500;font-size:14px"},"Uygulama kurulu"),
+      mk("div",{style:"font-size:12px;color:var(--text-secondary);margin-top:4px"},"Ana ekrandan çalışıyorsunuz")
+    );
+    wrap.appendChild(installedCard);
+  }
+
   /* özellikler */
   const featCard = mk("div",{className:"card"});
   featCard.appendChild(mk("div",{className:"section-title"},"Özellikler"));
@@ -705,7 +915,7 @@ function infoEl() {
   accCard.appendChild(logoutBtn2);
   wrap.appendChild(accCard);
 
-  wrap.appendChild(mk("div",{style:"text-align:center;padding:8px 0 4px;font-size:11px;color:var(--text-secondary)"},"ÇiftlikApp v1.0.0 · 2025 · Hayra vesile olsun 🤲"));
+  wrap.appendChild(mk("div",{style:"text-align:center;padding:8px 0 4px;font-size:11px;color:var(--text-secondary)"},"ÇiftlikApp v1.1.0 · 2025 · Hayra vesile olsun 🤲"));
   return wrap;
 }
 
@@ -1037,5 +1247,191 @@ function getAnimalForm() {
   };
 }
 </script>
+
+<script>
+// ── SERVICE WORKER — Otomatik Güncelleme ──
+const SW_VERSION = "v1.1.0";
+
+// ── PWA KURULUM ALGILAMA ──
+let deferredInstallPrompt = null;
+
+// Android Chrome: beforeinstallprompt yakala
+window.addEventListener("beforeinstallprompt", e => {
+  e.preventDefault();
+  deferredInstallPrompt = e;
+  // Banner göster (eğer zaten kurulmamışsa)
+  if (!isStandalone()) showInstallBanner("android");
+});
+
+// APK / Standalone algılama
+function isStandalone() {
+  return window.matchMedia("(display-mode: standalone)").matches
+    || window.navigator.standalone === true
+    || document.referrer.includes("android-app://");
+}
+
+function isIOS() {
+  return /iphone|ipad|ipod/i.test(navigator.userAgent) && !window.MSStream;
+}
+
+function isAndroid() {
+  return /android/i.test(navigator.userAgent);
+}
+
+// İlk ziyaret kontrolü
+function checkFirstVisit() {
+  if (isStandalone()) return; // APK/ana ekrandan açılmış, banner gerekmez
+  const key = "ciftlik_install_dismissed";
+  if (localStorage.getItem(key)) return; // Daha önce kapatmış
+  // iOS için her zaman göster (beforeinstallprompt yok iOS'ta)
+  if (isIOS()) { setTimeout(() => showInstallBanner("ios"), 1500); return; }
+  // Android için beforeinstallprompt gelirse zaten gösterir
+  // Ama gelmezse (Chrome dışı vs) gösterme
+}
+
+function showInstallBanner(platform) {
+  if (document.getElementById("install-banner")) return;
+  const banner = document.createElement("div");
+  banner.id = "install-banner";
+  banner.style.cssText = "position:fixed;bottom:80px;left:50%;transform:translateX(-50%);width:calc(100% - 24px);max-width:456px;background:#0a2e1f;color:#fff;border-radius:16px;padding:14px 16px;z-index:9998;box-shadow:0 4px 24px rgba(0,0,0,.35);display:flex;align-items:center;gap:12px;animation:slideUp .3s ease;font-family:sans-serif";
+
+  const icon = document.createElement("div");
+  icon.style.cssText = "width:44px;height:44px;border-radius:10px;background:rgba(255,255,255,.12);display:flex;align-items:center;justify-content:center;font-size:24px;flex-shrink:0";
+  icon.textContent = "🌿";
+
+  const textDiv = document.createElement("div");
+  textDiv.style.flex = "1";
+  const title = document.createElement("div");
+  title.style.cssText = "font-weight:600;font-size:14px;margin-bottom:3px";
+  title.textContent = "ÇiftlikApp'i Kur";
+  const sub = document.createElement("div");
+  sub.style.cssText = "font-size:12px;opacity:.75;line-height:1.4";
+  sub.textContent = platform === "ios"
+    ? "Safari'de 📤 → 'Ana Ekrana Ekle'"
+    : "Uygulama gibi kullanmak için ana ekrana ekle";
+  textDiv.append(title, sub);
+
+  const btnWrap = document.createElement("div");
+  btnWrap.style.cssText = "display:flex;flex-direction:column;gap:6px;flex-shrink:0";
+
+  if (platform === "android" && deferredInstallPrompt) {
+    const installBtn = document.createElement("button");
+    installBtn.style.cssText = "background:#1D9E75;border:none;color:#fff;padding:8px 14px;border-radius:8px;font-size:13px;font-weight:600;cursor:pointer;white-space:nowrap";
+    installBtn.textContent = "Ekle";
+    installBtn.addEventListener("click", async () => {
+      deferredInstallPrompt.prompt();
+      const { outcome } = await deferredInstallPrompt.userChoice;
+      deferredInstallPrompt = null;
+      dismissInstallBanner();
+    });
+    btnWrap.appendChild(installBtn);
+  }
+
+  const closeBtn = document.createElement("button");
+  closeBtn.style.cssText = "background:rgba(255,255,255,.15);border:none;color:#fff;padding:6px 14px;border-radius:8px;font-size:12px;cursor:pointer;white-space:nowrap";
+  closeBtn.textContent = platform === "ios" ? "Anladım" : "Kapat";
+  closeBtn.addEventListener("click", dismissInstallBanner);
+  btnWrap.appendChild(closeBtn);
+
+  banner.append(icon, textDiv, btnWrap);
+  document.body.appendChild(banner);
+}
+
+function dismissInstallBanner() {
+  document.getElementById("install-banner")?.remove();
+  localStorage.setItem("ciftlik_install_dismissed", "1");
+}
+
+// APK kurulumu tamamlandı sinyali
+window.addEventListener("appinstalled", () => {
+  dismissInstallBanner();
+  console.log("ÇiftlikApp kuruldu!");
+});
+
+
+if ("serviceWorker" in navigator) {
+  // Register inline SW via blob
+  const swCode = `
+const CACHE = "ciftlikapp-${SW_VERSION}";
+const ASSETS = [location.href];
+
+self.addEventListener("install", e => {
+  e.waitUntil(
+    caches.open(CACHE).then(cache => cache.addAll(ASSETS)).then(() => self.skipWaiting())
+  );
+});
+
+self.addEventListener("activate", e => {
+  e.waitUntil(
+    caches.keys().then(keys =>
+      Promise.all(keys.filter(k => k !== CACHE).map(k => caches.delete(k)))
+    ).then(() => self.clients.claim())
+  );
+});
+
+self.addEventListener("fetch", e => {
+  // Network first, fallback to cache
+  e.respondWith(
+    fetch(e.request)
+      .then(res => {
+        const clone = res.clone();
+        caches.open(CACHE).then(cache => cache.put(e.request, clone));
+        return res;
+      })
+      .catch(() => caches.match(e.request))
+  );
+});
+
+// Notify clients when new SW is waiting
+self.addEventListener("message", e => {
+  if (e.data === "skipWaiting") self.skipWaiting();
+});
+  `;
+
+  const blob = new Blob([swCode], { type: "application/javascript" });
+  const swUrl = URL.createObjectURL(blob);
+
+  navigator.serviceWorker.register(swUrl).then(reg => {
+    // Check for updates every time app opens
+    reg.update();
+
+    reg.addEventListener("updatefound", () => {
+      const newSW = reg.installing;
+      newSW.addEventListener("statechange", () => {
+        if (newSW.state === "installed" && navigator.serviceWorker.controller) {
+          // New version available — show update banner
+          showUpdateBanner(newSW);
+        }
+      });
+    });
+  }).catch(() => {});
+
+  // Reload after SW takes control
+  let refreshing = false;
+  navigator.serviceWorker.addEventListener("controllerchange", () => {
+    if (!refreshing) { refreshing = true; window.location.reload(); }
+  });
+}
+
+function showUpdateBanner(newSW) {
+  // Remove existing banner if any
+  document.getElementById("update-banner")?.remove();
+
+  const banner = document.createElement("div");
+  banner.id = "update-banner";
+  banner.style.cssText = "position:fixed;top:0;left:50%;transform:translateX(-50%);width:100%;max-width:480px;background:#1D9E75;color:#fff;padding:12px 16px;display:flex;align-items:center;justify-content:space-between;z-index:9999;font-family:sans-serif;font-size:14px;font-weight:500;box-shadow:0 2px 12px rgba(0,0,0,.2)";
+  banner.innerHTML = '<span>🌿 Yeni güncelleme mevcut!</span><button onclick="applyUpdate()" style="background:rgba(255,255,255,.25);border:none;color:#fff;padding:6px 14px;border-radius:8px;font-size:13px;font-weight:600;cursor:pointer">Güncelle</button>';
+  document.body.prepend(banner);
+  window._pendingSW = newSW;
+}
+
+function applyUpdate() {
+  if (window._pendingSW) {
+    window._pendingSW.postMessage("skipWaiting");
+  }
+  document.getElementById("update-banner")?.remove();
+}
+</script>
+
 </body>
 </html>
