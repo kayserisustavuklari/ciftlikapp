@@ -124,7 +124,21 @@ onAuthStateChanged(auth, u => {
 function render() {
   const root = document.getElementById("root");
   if(state.user === undefined) { root.innerHTML = loadingHTML(); return; }
-  if(!state.user) { root.innerHTML = loginHTML(); return; }
+  if(!state.user) {
+    root.innerHTML = loginHTML();
+    document.getElementById("btn-google-login")?.addEventListener("click", async () => {
+      try {
+        await signInWithPopup(auth, provider);
+      } catch(e) {
+        if(e.code === "auth/popup-blocked" || e.code === "auth/popup-closed-by-user" || e.code === "auth/cancelled-popup-request") {
+          await signInWithRedirect(auth, provider);
+        } else {
+          console.error("Login error:", e.code, e.message);
+        }
+      }
+    });
+    return;
+  }
   root.innerHTML = appHTML();
   attachListeners();
 }
@@ -608,18 +622,6 @@ function attachListeners() {
 
   // Logout
   document.getElementById("btn-logout")?.addEventListener("click",()=>signOut(auth));
-
-  // Google login
-  document.getElementById("btn-google-login")?.addEventListener("click", async () => {
-    try {
-      await signInWithPopup(auth, provider);
-    } catch(e) {
-      // Fallback to redirect if popup blocked
-      if(e.code === "auth/popup-blocked" || e.code === "auth/popup-closed-by-user" || e.code === "auth/cancelled-popup-request") {
-        await signInWithRedirect(auth, provider);
-      }
-    }
-  });
 
   // Modal close
   document.getElementById("btn-modal-close")?.addEventListener("click",closeModal);
