@@ -2,7 +2,7 @@
 <html lang="tr">
 <head>
 <meta charset="UTF-8"/>
-<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"/>
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover"/>
 <meta name="theme-color" content="#0a2e1f"/>
 <meta name="mobile-web-app-capable" content="yes"/>
 <meta name="apple-mobile-web-app-capable" content="yes"/>
@@ -81,13 +81,13 @@ input,select,textarea{font-family:inherit}
 .form-group{margin-bottom:12px}
 .form-row-2{display:grid;grid-template-columns:1fr 1fr;gap:10px}
 .form-label{display:block;font-size:13px;font-weight:500;color:var(--text-secondary);margin-bottom:6px}
-input,select,textarea{width:100%;padding:11px 14px;border:.5px solid var(--border);border-radius:var(--radius-sm);font-size:15px;background:var(--bg-primary);color:var(--text-primary);transition:border-color .15s;appearance:auto}
+input,select,textarea{width:100%;padding:11px 14px;border:.5px solid var(--border);border-radius:var(--radius-sm);font-size:16px;background:var(--bg-primary);color:var(--text-primary);transition:border-color .15s;appearance:auto}
 input:focus,select:focus,textarea:focus{outline:none;border-color:var(--green);box-shadow:0 0 0 3px rgba(29,158,117,.12)}
 .search-input{background:var(--bg-secondary);border-color:transparent}
 .search-input:focus{background:var(--bg-primary)}
-.modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:200;display:flex;align-items:flex-end;justify-content:center;backdrop-filter:blur(2px);animation:fadeIn .15s ease}
+.modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:200;display:flex;align-items:flex-end;justify-content:center;backdrop-filter:blur(2px);animation:fadeIn .15s ease;overflow-y:auto}
 @keyframes fadeIn{from{opacity:0}to{opacity:1}}
-.modal{background:var(--bg-primary);border-radius:var(--radius-lg) var(--radius-lg) 0 0;width:100%;max-width:480px;max-height:90vh;overflow-y:auto;animation:slideUp .2s ease}
+.modal{background:var(--bg-primary);border-radius:var(--radius-lg) var(--radius-lg) 0 0;width:100%;max-width:480px;max-height:92vh;overflow-y:auto;animation:slideUp .2s ease}
 @keyframes slideUp{from{transform:translateY(40px);opacity:0}to{transform:none;opacity:1}}
 .modal-header{padding:16px;border-bottom:.5px solid var(--border);display:flex;justify-content:space-between;align-items:center;position:sticky;top:0;background:var(--bg-primary);z-index:1}
 .modal-body{padding:16px}
@@ -121,7 +121,7 @@ const TUR_LABELS = {koyun:"Koyun",keci:"Keçi",buyukbas:"Büyükbaş"};
 const TUR_EMOJI  = {koyun:"🐑",keci:"🐐",buyukbas:"🐄"};
 const TUR_BG     = {koyun:"#E1F5EE",keci:"#FAEEDA",buyukbas:"#E6F1FB"};
 const GIDER_CATS = ["Yem","Veteriner","İlaç / Aşı","Bakım & Temizlik","Elektrik & Su","İşçilik","Ekipman","Diğer Gider"];
-const GELIR_CATS = ["Hayvan Satışı","Süt Satışı","Et Satışı","Yün / Tiftik","Gübre","Diğer Gelir"];
+const GELIR_CATS = ["Hayvan Satışı","Toplu Hayvan Satışı","Süt Satışı","Et Satışı","Yün / Tiftik","Gübre","Diğer Gelir"];
 const PAGES      = [["dashboard","📊","Özet"],["animals","🐑","Hayvanlar"],["barns","🏠","Ahırlar"],["finance","💰","Finans"],["reminders","🔔","Uyarılar"],["info","ℹ️","Bilgi"]];
 
 /* ── HELPERS ── */
@@ -505,7 +505,9 @@ function financeEl() {
   });
   const addBtn = mk("button",{className:"btn-primary btn-sm"},"+ Ekle");
   addBtn.addEventListener("click",()=>{ S.modal="addFin"; S.form={tip:"gider",kategori:"Yem",tarih:today()}; render(); });
-  tbRow.append(tabBar,addBtn);
+  const saleBtn = mk("button",{className:"btn-outline btn-sm",style:"white-space:nowrap"},"🐑 Toplu Satış");
+  saleBtn.addEventListener("click",()=>{ S.modal="topluSatis"; S.form={tarih:today(),alici:"",tutar:"",odenen:"",hayvanlar:[]}; render(); });
+  tbRow.append(tabBar,saleBtn,addBtn);
   wrap.appendChild(tbRow);
 
   /* month filter */
@@ -553,7 +555,13 @@ function financeEl() {
     const inf = mk("div",{style:"flex:1"});
     inf.append(mk("div",{style:"font-weight:500;font-size:14px"},f.kategori), mk("div",{className:"row-sub"},fmtDate(f.tarih)+(f.aciklama?" · "+f.aciklama:"")));
     const right = mk("div",{style:"display:flex;align-items:center;gap:10px"});
-    right.appendChild(mk("span",{style:"font-weight:600;color:"+(f.tip==="gelir"?"var(--green)":"var(--red)")},(f.tip==="gelir"?"+":"−")+fmt(f.tutar)));
+    const amtDiv = mk("div",{style:"text-align:right"});
+    amtDiv.appendChild(mk("span",{style:"display:block;font-weight:600;color:"+(f.tip==="gelir"?"var(--green)":"var(--red)")},(f.tip==="gelir"?"+":"−")+fmt(f.tutar)));
+    if(f.odenen!==undefined && f.odenen!==null && f.odenen!=="") {
+      const kalan = (f.tutar||0)-(f.odenen||0);
+      amtDiv.appendChild(mk("span",{style:"display:block;font-size:11px;color:"+(kalan>0?"var(--red)":"var(--green)")},kalan>0?"Kalan: "+fmt(kalan):"✓ Ödendi"));
+    }
+    right.appendChild(amtDiv);
     const delBtn = mk("button",{className:"icon-btn",style:"color:var(--red);opacity:.6"},"✕");
     delBtn.addEventListener("click",()=>{ S.modal="confirmDelete"; S.modalData={msg:"Bu kaydı silmek istiyor musunuz?",col:"finances",id:f.id}; render(); });
     right.appendChild(delBtn);
@@ -829,10 +837,91 @@ function buildModal() {
     const acInp=mk("input",{id:"f-fin-aciklama",value:f.aciklama||"",placeholder:"Opsiyonel..."}); g5.appendChild(acInp); body.appendChild(g5);
     const footer=mk("div",{className:"modal-footer"});
     const cancelBtn=mk("button",{className:"btn-outline btn-sm"},"İptal"); cancelBtn.addEventListener("click",closeModal);
+    // odenen field
+    const g6=mk("div",{className:"form-group",id:"f-odenen-row"}); g6.append(mk("label",{className:"form-label"},"Ödenen Tutar (₺)"));
+    const odInp=mk("input",{type:"number",id:"f-fin-odenen",value:f.odenen||"",placeholder:"Boş bırakırsanız takip edilmez"}); g6.appendChild(odInp); body.appendChild(g6);
     const saveBtn=mk("button",{className:"btn-primary btn-sm"},"Kaydet");
     saveBtn.addEventListener("click",async()=>{
       const tutar=parseFloat(el("f-fin-tutar")?.value); if(!tutar){alert("Tutar zorunlu!"); return;}
-      await dbAdd("finances",{tip:el("f-fin-tip")?.value||"gider",kategori:el("f-fin-kat")?.value||"",tutar,tarih:el("f-fin-tarih")?.value||today(),aciklama:el("f-fin-aciklama")?.value.trim()||""});
+      const odVal=el("f-fin-odenen")?.value;
+      const rec={tip:el("f-fin-tip")?.value||"gider",kategori:el("f-fin-kat")?.value||"",tutar,tarih:el("f-fin-tarih")?.value||today(),aciklama:el("f-fin-aciklama")?.value.trim()||""};
+      if(odVal!=="") rec.odenen=parseFloat(odVal)||0;
+      await dbAdd("finances",rec);
+      closeModal();
+    });
+    footer.append(cancelBtn,saveBtn);
+    modal.append(hdr,body,footer);
+  }
+
+  else if (m==="topluSatis") {
+    const hdr=modalHeader("🐑 Toplu Hayvan Satışı");
+    const body=mk("div",{className:"modal-body"});
+    const f=S.form;
+
+    // Alici + tarih + toplam + odenen
+    const r1=mk("div",{className:"form-row-2"});
+    addField(r1,"Alıcı Adı","text","f-satis-alici",f.alici||"","Ad Soyad...");
+    addField(r1,"Tarih","date","f-satis-tarih",f.tarih||today(),"");
+    body.appendChild(r1);
+    const r2=mk("div",{className:"form-row-2"});
+    addField(r2,"Toplam Tutar (₺)","number","f-satis-tutar",f.tutar||"","0");
+    addField(r2,"Ödenen Tutar (₺)","number","f-satis-odenen",f.odenen||"","Boş=tamamı");
+    body.appendChild(r2);
+
+    // Hayvan seçimi — ahır filtresi
+    const ahirFilterG=mk("div",{className:"form-group"});
+    ahirFilterG.append(mk("label",{className:"form-label"},"Ahıra Göre Filtrele"));
+    const ahirFilterSel=mk("select",{id:"f-satis-ahir-filter"});
+    ahirFilterSel.appendChild(mk("option",{value:""},"Tüm Hayvanlar"));
+    S.barns.forEach(b=>{ const o=mk("option",{value:b.id},b.ad); ahirFilterSel.appendChild(o); });
+    ahirFilterSel.addEventListener("change",e=>{ S.form.ahirFilter=e.target.value; render(); });
+    ahirFilterG.appendChild(ahirFilterSel);
+    body.appendChild(ahirFilterG);
+
+    // Animal checklist
+    const listG=mk("div",{className:"form-group"});
+    listG.append(mk("label",{className:"form-label"},"Satılacak Hayvanları Seçin"));
+    const animalList=mk("div",{style:"max-height:200px;overflow-y:auto;border:.5px solid var(--border);border-radius:8px;padding:4px"});
+    const filtered2=S.animals.filter(a=>!f.ahirFilter||a.ahirId===f.ahirFilter);
+    if(!filtered2.length) animalList.appendChild(mk("p",{style:"font-size:13px;color:var(--text-secondary);padding:12px;text-align:center"},"Hayvan bulunamadı"));
+    filtered2.forEach(a=>{
+      const row=mk("div",{style:"display:flex;align-items:center;gap:10px;padding:8px 10px;border-bottom:.5px solid var(--border)"});
+      const chk=mk("input",{type:"checkbox",style:"width:auto;flex-shrink:0"});
+      if((f.hayvanlar||[]).includes(a.id)) chk.checked=true;
+      chk.addEventListener("change",e=>{
+        if(!S.form.hayvanlar) S.form.hayvanlar=[];
+        if(e.target.checked) S.form.hayvanlar=[...S.form.hayvanlar,a.id];
+        else S.form.hayvanlar=S.form.hayvanlar.filter(id=>id!==a.id);
+      });
+      const info=mk("div",{});
+      info.append(mk("span",{style:"font-weight:500;font-size:14px"},TUR_EMOJI[a.tur]+" "+a.kupe+(a.isim?" ("+a.isim+")":"")), mk("br",{}), mk("span",{style:"font-size:12px;color:var(--text-secondary)"},(a.irk||TUR_LABELS[a.tur])+" · "+(a.cinsiyet==="disi"?"♀":"♂")+(a.agirlik?" · "+a.agirlik+"kg":"")));
+      row.append(chk,info);
+      animalList.appendChild(row);
+    });
+    listG.appendChild(animalList);
+    body.appendChild(listG);
+
+    // Aciklama
+    const acG=mk("div",{className:"form-group"}); acG.append(mk("label",{className:"form-label"},"Açıklama"));
+    const acInp=mk("input",{id:"f-satis-aciklama",value:f.aciklama||"",placeholder:"Opsiyonel..."}); acG.appendChild(acInp); body.appendChild(acG);
+
+    const footer=mk("div",{className:"modal-footer"});
+    const cancelBtn=mk("button",{className:"btn-outline btn-sm"},"İptal"); cancelBtn.addEventListener("click",closeModal);
+    const saveBtn=mk("button",{className:"btn-primary btn-sm"},"Satışı Kaydet");
+    saveBtn.addEventListener("click",async()=>{
+      const tutar=parseFloat(el("f-satis-tutar")?.value); if(!tutar){alert("Tutar zorunlu!"); return;}
+      const secilen=S.form.hayvanlar||[];
+      if(!secilen.length){alert("En az bir hayvan seçin!"); return;}
+      const odenenVal=el("f-satis-odenen")?.value;
+      const aciklama=el("f-satis-aciklama")?.value.trim()||"";
+      const alici=el("f-satis-alici")?.value.trim()||"";
+      const tarih=el("f-satis-tarih")?.value||today();
+      const rec={tip:"gelir",kategori:"Toplu Hayvan Satışı",tutar,tarih,aciklama:alici+(aciklama?" · "+aciklama:"")+" ("+secilen.length+" hayvan)",hayvanIds:secilen};
+      if(odenenVal!=="") rec.odenen=parseFloat(odenenVal)||0;
+      await dbAdd("finances",rec);
+      // Delete sold animals
+      for(const id of secilen) await dbDel("animals",id);
+      alert("✅ Satış kaydedildi, "+secilen.length+" hayvan kayıttan silindi.");
       closeModal();
     });
     footer.append(cancelBtn,saveBtn);
