@@ -90,7 +90,8 @@ self.addEventListener('message', e => {
           const banner = document.createElement('div');
           banner.id = 'sw-banner';
           banner.style.cssText = 'position:fixed;top:0;left:0;right:0;z-index:9999;background:#0F6E56;color:#fff;padding:12px 16px;display:flex;align-items:center;justify-content:space-between;font-family:sans-serif;font-size:14px;';
-          banner.innerHTML = '<span>🌿 Yeni güncelleme mevcut!</span><button onclick="newWorker.postMessage('skipWaiting');location.reload()" style="background:#fff;color:#0F6E56;border:none;border-radius:8px;padding:6px 14px;font-weight:600;cursor:pointer">Güncelle</button>';
+          banner.innerHTML = '<span>🌿 Yeni güncelleme mevcut!</span><button id="sw-update-btn" style="background:#fff;color:#0F6E56;border:none;border-radius:8px;padding:6px 14px;font-weight:600;cursor:pointer">Güncelle</button>';
+          banner.querySelector('#sw-update-btn').addEventListener('click', () => { newWorker.postMessage('skipWaiting'); location.reload(); });
           document.body.prepend(banner);
         }
       });
@@ -133,7 +134,7 @@ const FIREBASE_CONFIG = {
 };
 </script>
 
-<link rel="manifest" href="data:application/manifest+json,%7B%22name%22%3A%22%C3%87iftlikApp%22%2C%22short_name%22%3A%22%C3%87iftlikApp%22%2C%22description%22%3A%22K%C3%BC%C3%A7%C3%BCkba%C5%9F%20%26%20B%C3%BCy%C3%BCkba%C5%9F%20Y%C3%B6netim%22%2C%22start_url%22%3A%22.%2F%22%2C%22display%22%3A%22standalone%22%2C%22background_color%22%3A%22%230a2e1f%22%2C%22theme_color%22%3A%22%230a2e1f%22%2C%22orientation%22%3A%22portrait%22%7D"/>
+<link rel="manifest" href="#" id="manifest-placeholder"/>
 
 <style>
 @import url('https://fonts.googleapis.com/css2?family=DM+Serif+Display&family=DM+Sans:opsz,wght@9..40,300;9..40,400;9..40,500;9..40,600&display=swap');
@@ -1252,6 +1253,30 @@ function getAnimalForm() {
 // ── SERVICE WORKER — Otomatik Güncelleme ──
 const SW_VERSION = "v1.1.0";
 
+// Manifest dinamik olarak oluştur (doğru URL ile)
+(function() {
+  const manifest = {
+    name: "ÇiftlikApp",
+    short_name: "ÇiftlikApp",
+    description: "Küçükbaş & Büyükbaş Yönetim",
+    start_url: location.pathname,
+    display: "standalone",
+    background_color: "#0a2e1f",
+    theme_color: "#0a2e1f",
+    orientation: "portrait",
+    icons: [
+      { src: "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 192 192'%3E%3Crect width='192' height='192' rx='40' fill='%230a2e1f'/%3E%3Ctext y='140' x='96' text-anchor='middle' font-size='120'%3E%F0%9F%8C%BF%3C/text%3E%3C/svg%3E", sizes: "192x192", type: "image/svg+xml" },
+      { src: "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 512 512'%3E%3Crect width='512' height='512' rx='100' fill='%230a2e1f'/%3E%3Ctext y='370' x='256' text-anchor='middle' font-size='320'%3E%F0%9F%8C%BF%3C/text%3E%3C/svg%3E", sizes: "512x512", type: "image/svg+xml" }
+    ]
+  };
+  const blob = new Blob([JSON.stringify(manifest)], {type: "application/manifest+json"});
+  const url  = URL.createObjectURL(blob);
+  const link = document.getElementById("manifest-placeholder") || document.createElement("link");
+  link.rel   = "manifest";
+  link.href  = url;
+  if (!link.parentNode) document.head.appendChild(link);
+})();
+
 // ── PWA KURULUM ALGILAMA ──
 let deferredInstallPrompt = null;
 
@@ -1351,42 +1376,15 @@ window.addEventListener("appinstalled", () => {
 
 if ("serviceWorker" in navigator) {
   // Register inline SW via blob
-  const swCode = `
-const CACHE = "ciftlikapp-${SW_VERSION}";
-const ASSETS = [location.href];
-
-self.addEventListener("install", e => {
-  e.waitUntil(
-    caches.open(CACHE).then(cache => cache.addAll(ASSETS)).then(() => self.skipWaiting())
-  );
-});
-
-self.addEventListener("activate", e => {
-  e.waitUntil(
-    caches.keys().then(keys =>
-      Promise.all(keys.filter(k => k !== CACHE).map(k => caches.delete(k)))
-    ).then(() => self.clients.claim())
-  );
-});
-
-self.addEventListener("fetch", e => {
-  // Network first, fallback to cache
-  e.respondWith(
-    fetch(e.request)
-      .then(res => {
-        const clone = res.clone();
-        caches.open(CACHE).then(cache => cache.put(e.request, clone));
-        return res;
-      })
-      .catch(() => caches.match(e.request))
-  );
-});
-
-// Notify clients when new SW is waiting
-self.addEventListener("message", e => {
-  if (e.data === "skipWaiting") self.skipWaiting();
-});
-  `;
+  const cacheKey = "ciftlikapp-" + SW_VERSION;
+  const swLines = [
+    'const CACHE = "' + cacheKey + '";',
+    'self.addEventListener("install", e => { e.waitUntil(caches.open(CACHE).then(c => c.addAll([self.location.href])).then(() => self.skipWaiting())); });',
+    'self.addEventListener("activate", e => { e.waitUntil(caches.keys().then(keys => Promise.all(keys.filter(k => k !== CACHE).map(k => caches.delete(k)))).then(() => self.clients.claim())); });',
+    'self.addEventListener("fetch", e => { e.respondWith(fetch(e.request).then(res => { caches.open(CACHE).then(c => c.put(e.request, res.clone())); return res; }).catch(() => caches.match(e.request))); });',
+    'self.addEventListener("message", e => { if (e.data === "skipWaiting") self.skipWaiting(); });'
+  ];
+  const swCode = swLines.join("\n");
 
   const blob = new Blob([swCode], { type: "application/javascript" });
   const swUrl = URL.createObjectURL(blob);
