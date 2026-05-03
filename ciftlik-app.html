@@ -305,23 +305,47 @@ onAuthStateChanged(auth, u => {
 
 function showWelcomeBanner(u) {
   if (isStandalone()) return;
-  const banner = document.createElement("div");
-  banner.id = "welcome-banner";
-  banner.style.cssText = "position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:9999;display:flex;align-items:center;justify-content:center;padding:24px;backdrop-filter:blur(4px);animation:fadeIn .2s ease;font-family:sans-serif";
-  banner.innerHTML = `
-    <div style="background:#fff;border-radius:20px;padding:28px 24px;max-width:340px;width:100%;text-align:center;box-shadow:0 8px 40px rgba(0,0,0,.3)">
-      <div style="width:72px;height:72px;border-radius:20px;background:#0a2e1f;display:flex;align-items:center;justify-content:center;font-size:40px;margin:0 auto 16px">🌿</div>
-      <div style="font-family:'Georgia',serif;font-size:22px;color:#1A2318;margin-bottom:6px">Hoş Geldiniz!</div>
-      <div style="font-size:13px;color:#5A6B58;margin-bottom:4px">${u.displayName||u.email}</div>
-      <div style="font-size:13px;color:#5A6B58;margin-bottom:20px">ÇiftlikApp'e ilk kez giriş yaptınız. Hayvanlarınızı, ahırlarınızı ve finansal kayıtlarınızı kolayca takip edebilirsiniz.</div>
-      <div style="background:#E1F5EE;border-radius:12px;padding:12px;margin-bottom:16px;text-align:left">
-        <div style="font-size:12px;font-weight:600;color:#0F6E56;margin-bottom:6px">HIZLI BAŞLANGIÇ</div>
-        <div style="font-size:12px;color:#1A2318;line-height:1.8">🏠 Önce <b>Ahır Ekle</b><br>🐑 Sonra <b>Hayvan Ekle</b><br>💰 Yem/gider için <b>Finans</b> sekmesi</div>
-      </div>
-      <button onclick="document.getElementById('welcome-banner').remove()" style="width:100%;background:#1D9E75;color:#fff;border:none;border-radius:12px;padding:13px;font-size:15px;font-weight:600;cursor:pointer">Başlayalım! 🐑</button>
-    </div>
-  \`;
-  document.body.appendChild(banner);
+  const overlay = document.createElement("div");
+  overlay.id = "welcome-banner";
+  overlay.style.cssText = "position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:9999;display:flex;align-items:center;justify-content:center;padding:24px;backdrop-filter:blur(4px);animation:fadeIn .2s ease;font-family:sans-serif";
+
+  const box = document.createElement("div");
+  box.style.cssText = "background:#fff;border-radius:20px;padding:28px 24px;max-width:340px;width:100%;text-align:center;box-shadow:0 8px 40px rgba(0,0,0,.3)";
+
+  const logoEl = document.createElement("div");
+  logoEl.style.cssText = "width:72px;height:72px;border-radius:20px;background:#0a2e1f;display:flex;align-items:center;justify-content:center;font-size:40px;margin:0 auto 16px";
+  logoEl.textContent = "🌿";
+
+  const h1El = document.createElement("div");
+  h1El.style.cssText = "font-family:'Georgia',serif;font-size:22px;color:#1A2318;margin-bottom:6px";
+  h1El.textContent = "Hoş Geldiniz!";
+
+  const nameEl = document.createElement("div");
+  nameEl.style.cssText = "font-size:13px;color:#5A6B58;margin-bottom:4px";
+  nameEl.textContent = u.displayName || u.email || "";
+
+  const descEl = document.createElement("div");
+  descEl.style.cssText = "font-size:13px;color:#5A6B58;margin-bottom:20px";
+  descEl.textContent = "ÇiftlikApp'e ilk kez giriş yaptınız. Hayvanlarınızı, ahırlarınızı ve finansal kayıtlarınızı kolayca takip edebilirsiniz.";
+
+  const tipBox = document.createElement("div");
+  tipBox.style.cssText = "background:#E1F5EE;border-radius:12px;padding:12px;margin-bottom:16px;text-align:left";
+  const tipTitle = document.createElement("div");
+  tipTitle.style.cssText = "font-size:12px;font-weight:600;color:#0F6E56;margin-bottom:6px";
+  tipTitle.textContent = "HIZLI BAŞLANGIÇ";
+  const tipBody = document.createElement("div");
+  tipBody.style.cssText = "font-size:12px;color:#1A2318;line-height:1.8";
+  tipBody.innerHTML = "🏠 Önce <b>Ahır Ekle</b><br>🐑 Sonra <b>Hayvan Ekle</b><br>💰 Yem/gider için <b>Finans</b> sekmesi";
+  tipBox.append(tipTitle, tipBody);
+
+  const startBtn = document.createElement("button");
+  startBtn.style.cssText = "width:100%;background:#1D9E75;color:#fff;border:none;border-radius:12px;padding:13px;font-size:15px;font-weight:600;cursor:pointer";
+  startBtn.textContent = "Başlayalım! 🐑";
+  startBtn.addEventListener("click", () => overlay.remove());
+
+  box.append(logoEl, h1El, nameEl, descEl, tipBox, startBtn);
+  overlay.appendChild(box);
+  document.body.appendChild(overlay);
 }
 
 /* ══════════════════════════════════════
