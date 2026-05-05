@@ -1,8 +1,5 @@
-cat > /mnt/user-data/outputs/vercel.json << 'EOF'
 {
   "rewrites": [
     { "source": "/(.*)", "destination": "/ciftlik-app.html" }
   ]
 }
-EOF
-echo "Done"
